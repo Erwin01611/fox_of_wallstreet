@@ -1,0 +1,25 @@
+# --- Data Handling & Math ---
+numpy
+pandas
+yfinance
+matplotlib
+
+# --- Machine Learning & AI ---
+torch
+transformers
+scikit-learn
+joblib
+optuna
+
+# --- Reinforcement Learning ---
+gymnasium
+stable-baselines3
+shimmy>=2.0  # Required for Gymnasium compatibility in SB3
+
+# --- API & Connectivity ---
+alpaca-py    # Official SDK for alpaca.data and alpaca.trading
+requests
+python-dotenv
+
+# --- Utilities ---
+tqdm
