@@ -33,6 +33,9 @@ CASH_RISK_FRACTION = 0.99
 STOP_LOSS_PCT = 0.10     # Reference variables for standard boundaries
 TAKE_PROFIT_PCT = 0.20
 
+
+MAX_BARS_NORMALIZATION = 100  # For hourly swing trading
+
 # ==========================================
 # 📦 ARTIFACT TRACKING (Auto-Naming Vault)
 # ==========================================
