@@ -26,3 +26,4 @@ tqdm
 
 gymnasium
 
+stable_baselines3
