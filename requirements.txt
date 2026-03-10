@@ -33,4 +33,7 @@ yfinance
 transformers
 
 alpaca
+alpaca-py
+
+dotenv
 
