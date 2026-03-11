@@ -14,12 +14,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import settings
 from core.processor import add_technical_indicators, prepare_features
 from core.environment import TradingEnv
+from core.tools import fnline, get_features_list, get_stack_size
 
 def run_training():
     '''
     Missing function or method docstring.
     '''
-    print(f"🚀 INITIATING TRAINING: {settings.EXPERIMENT_NAME}")
+    print(fnline(), f"🚀 INITIATING TRAINING: {settings.EXPERIMENT_NAME}")
 
     # 1. Load Data
     csv_path = f"data/{settings.SYMBOL.lower()}_{settings.TIMEFRAME}_hybrid.csv"
@@ -32,7 +33,7 @@ def run_training():
     # Slice to Training Dates
     mask = (df['Date'] >= pd.to_datetime(settings.TRAIN_START_DATE, utc=True)) & (df['Date'] <= pd.to_datetime(settings.TRAIN_END_DATE, utc=True))
     train_df = df.loc[mask].copy().reset_index(drop=True)
-    print(f"📅 Training Data: {len(train_df)} rows from {settings.TRAIN_START_DATE} to {settings.TRAIN_END_DATE}")
+    print(fnline(), f"📅 Training Data: {len(train_df)} rows from {settings.TRAIN_START_DATE} to {settings.TRAIN_END_DATE}")
 
     # 2. Process Features & Scale (Saves the Scaler)
     train_df = add_technical_indicators(train_df)
@@ -40,33 +41,7 @@ def run_training():
     if train_df.empty:
       raise ValueError("Training dataframe is empty after preprocessing. Check date split and rolling windows.")
 
-    base_features = [
-        'Log_Return',
-        'Volume_Z_Score',
-        'RSI',
-        'MACD_Hist',
-        'BB_Pct',
-        'ATR_Pct',
-        'Realized_Vol_Short',
-        'Realized_Vol_Long',
-        'Vol_Regime',
-        'Dist_MA_Fast',
-        'Dist_MA_Slow',
-        'QQQ_Ret',
-        'ARKK_Ret',
-        'Rel_Strength_QQQ',
-        'VIX_Z',
-        'TNX_Z',
-        'Sentiment_EMA',
-        'News_Intensity'
-    ]
-
-    if settings.TIMEFRAME == "1h":
-        features_list = base_features + ['Sin_Time', 'Cos_Time', 'Mins_to_Close']
-    elif settings.TIMEFRAME == "1d":
-        features_list = base_features
-    else:
-        raise ValueError(f"Unsupported TIMEFRAME: {settings.TIMEFRAME}")
+    features_list = get_features_list()
 
     scaled_features = prepare_features(train_df, features_list, is_training=True)
 
@@ -74,12 +49,7 @@ def run_training():
     base_env = TradingEnv(df=train_df, features=scaled_features)
     vec_env = DummyVecEnv([lambda: base_env])
 
-    if settings.TIMEFRAME == "1h":
-        stack_size = 5
-    elif settings.TIMEFRAME == "1d":
-        stack_size = 10
-    else:
-        raise ValueError(f"Unsupported TIMEFRAME: {settings.TIMEFRAME}")
+    stack_size = get_stack_size()
 
     env = VecFrameStack(vec_env, n_stack=stack_size)
     #env = VecFrameStack(vec_env, n_stack=5)
@@ -100,7 +70,7 @@ def run_training():
 
     # 5. Save Model
     model.save(settings.MODEL_PATH)
-    print(f"🧠 Model saved to {settings.MODEL_PATH}")
+    print(fnline(), f"🧠 Model saved to {settings.MODEL_PATH}")
 
     # 6. Generate MLOps Metadata Receipt
     metadata = {
@@ -119,8 +89,8 @@ def run_training():
     with open(settings.METADATA_PATH, "w") as f:
         json.dump(metadata, f, indent=4)
 
-    print(f"🧾 Metadata receipt generated at {settings.METADATA_PATH}")
-    print(f"✅ Training Complete. All artifacts secured in Vault: {settings.ARTIFACT_DIR}")
+    print(fnline(), f"🧾 Metadata receipt generated at {settings.METADATA_PATH}")
+    print(fnline(), f"✅ Training Complete. All artifacts secured in Vault: {settings.ARTIFACT_DIR}")
 
 if __name__ == "__main__":
     run_training()

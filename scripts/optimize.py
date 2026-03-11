@@ -14,12 +14,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import settings
 from core.processor import add_technical_indicators, prepare_features
 from core.environment import TradingEnv
-
+from core.tools import fnline, get_features_list, get_stack_size
 
 # ==========================================
 # 1. Global Data Setup
 # ==========================================
-print("📥 Loading local CSV for optimization...")
+print(fnline(), "📥 Loading local CSV for optimization...")
 
 csv_path = f"data/{settings.SYMBOL.lower()}_{settings.TIMEFRAME}_hybrid.csv"
 if not os.path.exists(csv_path):
@@ -45,36 +45,9 @@ train_df = add_technical_indicators(train_df)
 if train_df.empty:
     raise ValueError("❌ Training dataframe is empty after preprocessing. Check rolling windows and timeframe settings.")
 
-base_features = [
-    'Log_Return',
-    'Volume_Z_Score',
-    'RSI',
-    'MACD_Hist',
-    'BB_Pct',
-    'ATR_Pct',
-    'Realized_Vol_Short',
-    'Realized_Vol_Long',
-    'Vol_Regime',
-    'Dist_MA_Fast',
-    'Dist_MA_Slow',
-    'QQQ_Ret',
-    'ARKK_Ret',
-    'Rel_Strength_QQQ',
-    'VIX_Z',
-    'TNX_Z',
-    'Sentiment_EMA',
-    'News_Intensity'
-]
-
-if settings.TIMEFRAME == "1h":
-    features_list = base_features + ['Sin_Time', 'Cos_Time', 'Mins_to_Close']
-    stack_size = 5
-elif settings.TIMEFRAME == "1d":
-    features_list = base_features
-    stack_size = 10
-else:
-    raise ValueError(f"Unsupported TIMEFRAME: {settings.TIMEFRAME}")
-
+features_list = get_features_list()
+stack_size = get_stack_size()
+    
 scaled_features = prepare_features(train_df, features_list, is_training=True)
 
 
@@ -110,7 +83,7 @@ def objective(trial: optuna.Trial):
         mean_reward, _ = evaluate_policy(model, env, n_eval_episodes=3, deterministic=True)
         return mean_reward
     except Exception as e:
-        print(f"⚠️ Trial failed: {e}")
+        print(fnline(), f"⚠️ Trial failed: {e}")
         return -1000.0
 
 
@@ -118,7 +91,7 @@ def objective(trial: optuna.Trial):
 # 4. Run Optimization
 # ==========================================
 def run_optimization():
-    print("🧠 Starting Optuna hyperparameter search...")
+    print(fnline(), "🧠 Starting Optuna hyperparameter search...")
 
     sampler = TPESampler(seed=42)
     pruner = MedianPruner(n_warmup_steps=5)
@@ -137,13 +110,12 @@ def run_optimization():
 
     study.optimize(objective, n_trials=20)
 
-    print("\n🏆 OPTIMIZATION COMPLETE 🏆")
-    print(f"✅ Study saved to {db_path}")
-    print("Best Trial Score (Mean Reward):", study.best_value)
-    print("Best Hyperparameters:")
+    print(fnline(), "\n🏆 OPTIMIZATION COMPLETE 🏆")
+    print(fnline(), f"✅ Study saved to {db_path}")
+    print(fnline(), "Best Trial Score (Mean Reward):", study.best_value)
+    print(fnline(), "Best Hyperparameters:")
     for key, value in study.best_trial.params.items():
-        print(f"    {key}: {value}")
-
+        print(fnline(), f"    {key}: {value}")
 
 if __name__ == "__main__":
     run_optimization()

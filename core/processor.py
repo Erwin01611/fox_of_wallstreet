@@ -5,6 +5,7 @@ import os
 from sklearn.preprocessing import RobustScaler
 
 from config import settings
+from core.tools import fnline
 from config.settings import (
     RSI_WINDOW, MACD_FAST, MACD_SLOW, MACD_SIGNAL,
     VOLATILITY_WINDOW, SHORT_VOL_WINDOW, LONG_VOL_WINDOW,
@@ -13,7 +14,7 @@ from config.settings import (
 
 def add_technical_indicators(df):
     """Calculates a richer RL state space using real market, macro, and news features."""
-    print("📈 Calculating advanced Micro + Macro + Context indicators...")
+    print(fnline(), "📈 Calculating advanced Micro + Macro + Context indicators...")
 
     df = df.copy()
     df['Date'] = pd.to_datetime(df['Date'])
@@ -104,7 +105,7 @@ def add_technical_indicators(df):
         df['Mins_to_Close'] = 0.0
 
     else:
-        raise ValueError(f"Unsupported TIMEFRAME: {settings.TIMEFRAME}")
+        raise ValueError(f"{fnline()} Unsupported TIMEFRAME: {settings.TIMEFRAME}")
 
     # Clean up intermediate/raw columns
     cols_to_drop = [
@@ -119,18 +120,18 @@ def add_technical_indicators(df):
 def prepare_features(df, features_list, is_training=True):
     """Scales the data."""
     if is_training:
-        print("⚖️ Fitting new RobustScaler...")
+        print(fnline(), "⚖️ Fitting new RobustScaler...")
         scaler = RobustScaler()
         scaled_data = scaler.fit_transform(df[features_list])
 
         os.makedirs(os.path.dirname(SCALER_PATH), exist_ok=True)
         joblib.dump(scaler, SCALER_PATH)
-        print(f"✅ Scaler saved to {SCALER_PATH}")
+        print(fnline(), f"✅ Scaler saved to {SCALER_PATH}")
     else:
         if not os.path.exists(SCALER_PATH):
-            raise FileNotFoundError(f"❌ No scaler found at {SCALER_PATH}. Train the model first!")
+            raise FileNotFoundError(f"{fnline()} ❌ No scaler found at {SCALER_PATH}. Train the model first!")
 
-        print("⚖️ Loading existing RobustScaler for inference...")
+        print(fnline(), "⚖️ Loading existing RobustScaler for inference...")
         scaler = joblib.load(SCALER_PATH)
         scaled_data = scaler.transform(df[features_list])
 
