@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import settings
 from core.processor import add_technical_indicators
 from core.environment import TradingEnv
-
+from core.tools import fnline, get_features_list, get_stack_size
 
 # ==========================================
 # 1. Helpers
@@ -133,7 +133,7 @@ def run_validation_backtest(model, env):
 # ==========================================
 # 2. Global Data Setup
 # ==========================================
-print("📥 Loading local CSV for optimization...")
+print(fnline(), "📥 Loading local CSV for optimization...")
 
 csv_path = f"data/{settings.SYMBOL.lower()}_{settings.TIMEFRAME}_hybrid.csv"
 if not os.path.exists(csv_path):
@@ -159,23 +159,10 @@ full_train_df = add_technical_indicators(full_train_df)
 if full_train_df.empty:
     raise ValueError("❌ Training dataframe is empty after preprocessing. Check rolling windows and timeframe settings.")
 
-# Chronological split: first 80% train, last 20% validation
-split_idx = int(len(full_train_df) * 0.8)
-train_df = full_train_df.iloc[:split_idx].copy().reset_index(drop=True)
-valid_df = full_train_df.iloc[split_idx:].copy().reset_index(drop=True)
-
-if train_df.empty or valid_df.empty:
-    raise ValueError("❌ Train/validation split produced an empty subset.")
-
 features_list = get_features_list()
 stack_size = get_stack_size()
-
-train_scaled, valid_scaled = scale_train_valid(train_df, valid_df, features_list)
-
-print(f"📊 Optimization train rows: {len(train_df)}")
-print(f"📊 Optimization valid rows: {len(valid_df)}")
-print(f"📊 Features used: {len(features_list)}")
-print(f"📊 Stack size: {stack_size}")
+    
+scaled_features = prepare_features(train_df, features_list, is_training=True)
 
 
 # ==========================================
@@ -220,7 +207,7 @@ def objective(trial: optuna.Trial):
         return total_return - 0.3 * abs(max_drawdown)
 
     except Exception as e:
-        print(f"⚠️ Trial failed: {e}")
+        print(fnline(), f"⚠️ Trial failed: {e}")
         return -1000.0
 
 
@@ -228,7 +215,7 @@ def objective(trial: optuna.Trial):
 # 5. Run Optimization
 # ==========================================
 def run_optimization():
-    print("🧠 Starting Optuna hyperparameter search...")
+    print(fnline(), "🧠 Starting Optuna hyperparameter search...")
 
     sampler = TPESampler(seed=42)
     pruner = MedianPruner(n_warmup_steps=5)
@@ -247,14 +234,12 @@ def run_optimization():
 
     study.optimize(objective, n_trials=20)
 
-    print("\n🏆 OPTIMIZATION COMPLETE 🏆")
-    print(f"✅ Study saved to {db_path}")
-    print(f"Study name: {study_name}")
-    print("Best Trial Score (Validation Mean Reward):", study.best_value)
-    print("Best Hyperparameters:")
+    print(fnline(), "\n🏆 OPTIMIZATION COMPLETE 🏆")
+    print(fnline(), f"✅ Study saved to {db_path}")
+    print(fnline(), "Best Trial Score (Mean Reward):", study.best_value)
+    print(fnline(), "Best Hyperparameters:")
     for key, value in study.best_trial.params.items():
-        print(f"    {key}: {value}")
-
+        print(fnline(), f"    {key}: {value}")
 
 if __name__ == "__main__":
     run_optimization()

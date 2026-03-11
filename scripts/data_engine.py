@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 # 🎛️ Connect to the Control Room
 from config import settings
-
+from core.tools import fnline
 
 # =========================
 # 1. ENV / MODEL SETUP
@@ -21,7 +21,7 @@ ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
 ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
 
 if not ALPACA_API_KEY or not ALPACA_SECRET_KEY:
-    raise ValueError("Missing ALPACA_API_KEY or ALPACA_SECRET_KEY in environment.")
+    raise ValueError(f"{fnline()} Missing ALPACA_API_KEY or ALPACA_SECRET_KEY in environment.")
 
 TOKENIZER = AutoTokenizer.from_pretrained("ProsusAI/finbert")
 FINBERT_MODEL = AutoModelForSequenceClassification.from_pretrained("ProsusAI/finbert")
@@ -29,7 +29,7 @@ FINBERT_MODEL = AutoModelForSequenceClassification.from_pretrained("ProsusAI/fin
 # Safer explicit label mapping
 LABEL_TO_IDX = {str(v).lower(): int(k) for k, v in FINBERT_MODEL.config.id2label.items()}
 if "positive" not in LABEL_TO_IDX or "negative" not in LABEL_TO_IDX:
-    raise ValueError(f"Unexpected FinBERT label mapping: {FINBERT_MODEL.config.id2label}")
+    raise ValueError(f"{fnline()} Unexpected FinBERT label mapping: {FINBERT_MODEL.config.id2label}")
 
 POS_IDX = LABEL_TO_IDX["positive"]
 NEG_IDX = LABEL_TO_IDX["negative"]
@@ -56,7 +56,7 @@ def normalize_timestamp(series):
     elif settings.TIMEFRAME == "1d":
         return dt.dt.floor("d")
     else:
-        raise ValueError(f"Unsupported TIMEFRAME: {settings.TIMEFRAME}")
+        raise ValueError(f"{fnline()} Unsupported TIMEFRAME: {settings.TIMEFRAME}")
 
 
 def safe_download(symbol, period, interval, retries=3, sleep_sec=5):
@@ -68,14 +68,14 @@ def safe_download(symbol, period, interval, retries=3, sleep_sec=5):
             if df is not None and not df.empty:
                 return df
 
-            print(f"   -> Empty download for {symbol}, retry {attempt + 1}/{retries}")
+            print(fnline(), f"   -> Empty download for {symbol}, retry {attempt + 1}/{retries}")
 
         except Exception as e:
-            print(f"   -> Download error for {symbol}, retry {attempt + 1}/{retries}: {e}")
+            print(fnline(), f"   -> Download error for {symbol}, retry {attempt + 1}/{retries}: {e}")
 
         time.sleep(sleep_sec)
 
-    print(f"   -> FAILED to download {symbol} after {retries} retries")
+    print(fnline(), f"   -> FAILED to download {symbol} after {retries} retries")
     return pd.DataFrame()
 
 
@@ -94,7 +94,7 @@ def score_headline_finbert(headline):
 # =========================
 def get_macro_market_data(symbol):
     """Fetch traded asset + macro market series with strict date alignment."""
-    print(f"📥 Fetching master market dataset for {symbol} ({settings.TIMEFRAME})...")
+    print(fnline(), f"📥 Fetching master market dataset for {symbol} ({settings.TIMEFRAME})...")
 
     tickers = {
         symbol: "Close",
@@ -108,13 +108,13 @@ def get_macro_market_data(symbol):
     period = get_download_period()
 
     for ticker, col_name in tickers.items():
-        print(f"   -> Pulling {ticker}...")
+        print(fnline(), f"   -> Pulling {ticker}...")
         df = safe_download(ticker, period=period, interval=settings.TIMEFRAME)
 
         if df.empty:
-            print(f"   -> WARNING: No data returned for {ticker}")
+            print(fnline(), f"   -> WARNING: No data returned for {ticker}")
             if ticker == symbol:
-                raise ValueError(f"{symbol} download failed, cannot build dataset.")
+                raise ValueError(f"{fnline()} {symbol} download failed, cannot build dataset.")
             continue
 
         # Flatten yfinance MultiIndex if present
@@ -125,7 +125,7 @@ def get_macro_market_data(symbol):
         df.rename(columns={"Datetime": "Date", "index": "Date"}, inplace=True)
 
         if "Date" not in df.columns:
-            raise ValueError(f"No Date column found after reset_index() for {ticker}.")
+            raise ValueError(f"{fnline()} No Date column found after reset_index() for {ticker}.")
 
         # Normalize timestamps (timeframe-aware)
         df["Date"] = normalize_timestamp(df["Date"])
@@ -134,7 +134,7 @@ def get_macro_market_data(symbol):
             required_cols = ["Date", "Open", "High", "Low", "Close", "Volume"]
             missing = [c for c in required_cols if c not in df.columns]
             if missing:
-                raise ValueError(f"Missing required columns for {ticker}: {missing}")
+                raise ValueError(f"{fnline()} Missing required columns for {ticker}: {missing}")
 
             master_df = df[required_cols].copy()
         else:
@@ -145,7 +145,7 @@ def get_macro_market_data(symbol):
         time.sleep(2)
 
     if master_df is None or master_df.empty:
-        raise ValueError("No market data could be assembled.")
+        raise ValueError(f"{fnline()} No market data could be assembled.")
 
     # Forward-fill macro series and drop remaining missing rows
     master_df = master_df.sort_values("Date").reset_index(drop=True)
@@ -153,9 +153,9 @@ def get_macro_market_data(symbol):
     master_df.dropna(inplace=True)
 
     if master_df.empty:
-        raise ValueError("Market dataframe became empty after ffill/dropna cleanup.")
+        raise ValueError(f"{fnline()} Market dataframe became empty after ffill/dropna cleanup.")
 
-    print(f"✅ Market data merged: {len(master_df)} rows.")
+    print(fnline(), f"✅ Market data merged: {len(master_df)} rows.")
     return master_df
 
 
@@ -164,14 +164,14 @@ def get_macro_market_data(symbol):
 # =========================
 def get_paginated_news_sentiment(symbol, start_date, end_date):
     """Fetch all Alpaca news between start_date and end_date and score with FinBERT."""
-    print(f"📰 Fetching and scoring paginated news for {symbol}...")
+    print(fnline(), f"📰 Fetching and scoring paginated news for {symbol}...")
     client = NewsClient(ALPACA_API_KEY, ALPACA_SECRET_KEY)
     all_news_dfs = []
 
     current_end = end_date.isoformat()
     final_start = start_date.isoformat()
 
-    print("Collecting headlines from Alpaca (backward time-stepping)...")
+    print(fnline(), "Collecting headlines from Alpaca (backward time-stepping)...")
 
     while True:
         request_params = NewsRequest(
@@ -191,27 +191,27 @@ def get_paginated_news_sentiment(symbol, start_date, end_date):
             all_news_dfs.append(batch_df)
 
             current_total = sum(len(d) for d in all_news_dfs)
-            print(f"   -> Progress: {current_total} articles fetched...", end="\r")
+            print(fnline(), f"   -> Progress: {current_total} articles fetched...", end="\r")
 
             oldest_time = batch_df["created_at"].min()
 
             if oldest_time <= start_date:
-                print(f"\n✅ Reached start date: {start_date}")
+                print(fnline(), f"\n✅ Reached start date: {start_date}")
                 break
 
             current_end = (oldest_time - pd.Timedelta(seconds=1)).isoformat()
 
         except Exception as e:
-            print(f"\nAPI error during time-stepping: {e}")
+            print(fnline(), f"\nAPI error during time-stepping: {e}")
             break
 
     if not all_news_dfs:
-        print("⚠️ No news returned from Alpaca.")
+        print(fnline(), "⚠️ No news returned from Alpaca.")
         return pd.DataFrame(columns=["Date", "Sentiment_EMA", "News_Intensity"])
 
     news_df = pd.concat(all_news_dfs, ignore_index=True)
     news_df = news_df.drop_duplicates(subset=["id"])
-    print(f"✅ Total unique articles collected: {len(news_df)}")
+    print(fnline(), f"✅ Total unique articles collected: {len(news_df)}")
 
     sentiment_scores = []
     for headline in tqdm(news_df["headline"], desc="🧠 FinBERT scoring"):
@@ -249,7 +249,7 @@ def build_and_save_dataset(symbol=None, output_file=None):
     sentiment_df = get_paginated_news_sentiment(symbol, start_date, end_date)
 
     # 3. Merge
-    print("🔄 Merging market and news datasets...")
+    print(fnline(), "🔄 Merging market and news datasets...")
     hybrid_df = pd.merge(price_df, sentiment_df, on="Date", how="left")
 
     # 4. Fill missing news-derived values
@@ -258,8 +258,8 @@ def build_and_save_dataset(symbol=None, output_file=None):
 
     # 5. Save
     hybrid_df.to_csv(output_file, index=False)
-    print(f"🎉 Dataset built and saved to: {output_file}")
-    print(f"📊 Final rows: {len(hybrid_df)}")
+    print(fnline(), f"🎉 Dataset built and saved to: {output_file}")
+    print(fnline(), f"📊 Final rows: {len(hybrid_df)}")
 
     return hybrid_df
 
