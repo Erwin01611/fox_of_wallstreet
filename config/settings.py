@@ -75,10 +75,11 @@ MIN_POSITION_THRESHOLD = 1e-8
 MAX_BARS_IN_TRADE_NORM = 100.0
 
 # 8. PPO DEFAULT HYPERPARAMETERS
-PPO_LEARNING_RATE = 0.0009 #3e-4
-PPO_BATCH_SIZE = 128 #64
-PPO_GAMMA = 0.9 #0.99
-PPO_ENT_COEF = 0.0007 #0.01
+PPO_LEARNING_RATE = 0.0001 #0.0003
+PPO_BATCH_SIZE = 256 #64
+PPO_GAMMA = 0.99 #0.99
+PPO_ENT_COEF = 0.002 #0.01
+
 
 # ==========================================
 # 📦 ARTIFACT TRACKING (Auto-Naming Vault)
@@ -86,7 +87,11 @@ PPO_ENT_COEF = 0.0007 #0.01
 ACTION_TAG = "d5" if ACTION_SPACE_TYPE == "discrete_5" else "d3"
 REWARD_TAG = "asym" if REWARD_STRATEGY == "absolute_asymmetric" else "pnl"
 ENV_TAG = f"pen{int(TRADE_PENALTY_FULL * 1000)}"
-PPO_TAG = f"lr{str(PPO_LEARNING_RATE).replace('.', '')}"
+PPO_TAG = (
+    f"lr{str(PPO_LEARNING_RATE).replace('.', '')}_"
+    f"bs{PPO_BATCH_SIZE}_"
+    f"g{str(PPO_GAMMA).replace('.', '')}"
+)
 
 # Example: ppo_TSLA_1h_d5_asym_pen10_lr00003_v1
 EXPERIMENT_NAME = f"ppo_{SYMBOL}_{TIMEFRAME}_{ACTION_TAG}_{REWARD_TAG}_{ENV_TAG}_{PPO_TAG}_v1"
