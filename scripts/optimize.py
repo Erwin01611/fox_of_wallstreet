@@ -48,7 +48,7 @@ def get_study_name():
     action_tag = "d5" if settings.ACTION_SPACE_TYPE == "discrete_5" else "d3"
     reward_tag = "asym" if settings.REWARD_STRATEGY == "absolute_asymmetric" else "pnl"
     env_tag = f"pen{int(settings.TRADE_PENALTY_FULL * 1000)}"
-    return f"ppo_{settings.SYMBOL.lower()}_{settings.TIMEFRAME}_{action_tag}_{reward_tag}_{env_tag}"
+    return f"ppo_{settings.SYMBOL.lower()}_{settings.TIMEFRAME}_{action_tag}_{reward_tag}_{env_tag}_{settings.OPTUNA_STUDY_VERSION}"
 
 
 def run_validation_backtest(model, env):
