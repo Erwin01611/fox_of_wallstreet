@@ -30,3 +30,8 @@ stable_baselines3
 
 yfinance
 
+alpaca
+alpaca-py
+
+dotenv
+

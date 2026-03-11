@@ -15,8 +15,9 @@ from alpaca.trading.enums import OrderSide, TimeInForce
 # Ensure pathing is correct
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from config import settings
 from config.settings import SYMBOL, MODEL_PATH
-from core.data_engine import get_hybrid_dataset
+from scripts.data_engine import build_and_save_dataset
 from core.processor import add_technical_indicators, prepare_features
 
 # --- CONFIGURATION ---
@@ -24,11 +25,19 @@ BUDGET = 10000.00  # The AI's fenced maximum budget
 BUY_THRESHOLD = 0.1
 SELL_THRESHOLD = -0.1
 
+def fnline():
+    '''
+    For logging and tracing.
+    Returns current filename and line number.
+    E.g.: backtest.py(144))
+    '''
+    return os.path.basename(__file__) + '(' + str(sys._getframe(1).f_lineno) + '):'
+
 def send_telegram_alert(message):
     token = os.getenv("TELEGRAM_TOKEN")
     chat_id = os.getenv("TELEGRAM_CHAT_ID")
     if not token or not chat_id:
-        print("⚠️ Telegram credentials missing in .env. Skipping alert.")
+        print(fnline(), "⚠️ Telegram credentials missing in .env. Skipping alert.")
         return
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
@@ -37,10 +46,10 @@ def send_telegram_alert(message):
     try:
         requests.post(url, json=payload)
     except Exception as e:
-        print(f"❌ Failed to send Telegram alert: {e}")
+        print(fnline(), f"❌ Failed to send Telegram alert: {e}")
 
 def run_live_trader():
-    print(f"🟢 STARTING LIVE TRADER FOR {SYMBOL} 🟢")
+    print(fnline(), f"🟢 STARTING LIVE TRADER FOR {SYMBOL} 🟢")
 
     # 1. Authenticate with Alpaca
     load_dotenv()
@@ -50,15 +59,15 @@ def run_live_trader():
     end_date = datetime.datetime.now()
     start_date = end_date - datetime.timedelta(days=100)
 
-    print("📥 Fetching latest market data and reading today's news...")
-    df = get_hybrid_dataset(SYMBOL, start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
+    print(fnline(), "📥 Fetching latest market data and reading today's news...")
+    df = build_and_save_dataset(SYMBOL)
     df_with_indicators = add_technical_indicators(df)
 
     # DEBUG: Check if we have data after indicators
-    print(f"📊 Rows available for AI after indicators: {len(df_with_indicators)}")
+    print(fnline(), f"📊 Rows available for AI after indicators: {len(df_with_indicators)}")
 
     if len(df_with_indicators) < 5:
-        print("❌ ERROR: Not enough data points to build a 5-day observation. Try increasing timedelta.")
+        print(fnline(), "❌ ERROR: Not enough data points to build a 5-day observation. Try increasing timedelta.")
         return
 
     # 3. Process and Scale features
@@ -67,6 +76,13 @@ def run_live_trader():
         'BB_Pct', 'Dist_SMA_50', 'AI_Score', 'AI_Confidence',
         'Sin_Time', 'Cos_Time'
     ]
+    features = [
+        'Close', 'RSI',
+        'BB_Pct',
+        'Sin_Time', 'Cos_Time'
+    ]
+    if settings.TIMEFRAME == "1h":
+        features = features + ['Sin_Time', 'Cos_Time', 'Mins_to_Close']
     scaled_df = prepare_features(df_with_indicators, features, is_training=False)
 
     # 4. Build the Observation (The last 5 days = 90 features)
@@ -74,7 +90,7 @@ def run_live_trader():
     obs = last_5_days.flatten().reshape(1, -1)
 
     # 5. Ask the AI for a decision
-    print(f"🧠 Asking Sentinel V7 for a decision on {SYMBOL}...")
+    print(fnline(), f"🧠 Asking Sentinel V7 for a decision on {SYMBOL}...")
     load_path = MODEL_PATH if MODEL_PATH.endswith(".zip") else MODEL_PATH
     model = PPO.load(load_path)
 
@@ -82,8 +98,8 @@ def run_live_trader():
     signal = float(action[0])
     current_price = df_with_indicators.iloc[-1]['Close']
 
-    print(f"\n📊 Current Price: ${current_price:.2f}")
-    print(f"🤖 AI Raw Signal: {signal:.3f}")
+    print(fnline(), f"\n📊 Current Price: ${current_price:.2f}")
+    print(fnline(), f"🤖 AI Raw Signal: {signal:.3f}")
 
     # 6. Check current Alpaca position
     try:
@@ -92,17 +108,17 @@ def run_live_trader():
     except:
         current_shares = 0.0
 
-    print(f"💼 Current Position: {current_shares} shares")
+    print(fnline(), f"💼 Current Position: {current_shares} shares")
 
     # 7. Execute the Strategy
-    print("\n" + "="*30)
+    print(fnline(), "\n" + "="*30)
     if signal > BUY_THRESHOLD:
         target_dollar_amount = BUDGET * signal
         current_value = current_shares * current_price
         needed_dollars = target_dollar_amount - current_value
 
         if needed_dollars > 10.00:
-            print(f"🟢 ACTION: BUYING ${needed_dollars:.2f} of {SYMBOL}")
+            print(fnline(), f"🟢 ACTION: BUYING ${needed_dollars:.2f} of {SYMBOL}")
             order = MarketOrderRequest(
                 symbol=SYMBOL,
                 notional=needed_dollars,
@@ -115,16 +131,16 @@ def run_live_trader():
             msg = f"🟢 *SENTINEL AI: BUY ALERT*\nSymbol: {SYMBOL}\nAction: Bought ${needed_dollars:.2f}\nPrice: ${current_price:.2f}\nAI Signal: {signal:.2f}"
             send_telegram_alert(msg)
 
-            print("✅ Buy order submitted to exchange.")
+            print(fnline(), "✅ Buy order submitted to exchange.")
         else:
-            print("⚪ ACTION: AI wants to buy, but we already own the target amount. Holding.")
+            print(fnline(), "⚪ ACTION: AI wants to buy, but we already own the target amount. Holding.")
 
     elif signal < SELL_THRESHOLD:
         sell_pct = abs(signal)
         shares_to_sell = current_shares * sell_pct
 
         if shares_to_sell > 0.001:
-            print(f"🔴 ACTION: SELLING {shares_to_sell:.4f} shares of {SYMBOL}")
+            print(fnline(), f"🔴 ACTION: SELLING {shares_to_sell:.4f} shares of {SYMBOL}")
             order = MarketOrderRequest(
                 symbol=SYMBOL,
                 qty=shares_to_sell,
@@ -137,13 +153,13 @@ def run_live_trader():
             msg = f"🔴 *SENTINEL AI: SELL ALERT*\nSymbol: {SYMBOL}\nAction: Sold {shares_to_sell:.4f} shares\nPrice: ${current_price:.2f}\nAI Signal: {signal:.2f}"
             send_telegram_alert(msg)
 
-            print("✅ Sell order submitted to exchange.")
+            print(fnline(), "✅ Sell order submitted to exchange.")
         else:
-            print("⚪ ACTION: AI wants to sell, but we don't own any shares. Ignoring.")
+            print(fnline(), "⚪ ACTION: AI wants to sell, but we don't own any shares. Ignoring.")
 
     else:
-        print("⚪ ACTION: Signal in Deadzone (-0.1 to 0.1). No trade executed.")
-    print("="*30)
+        print(fnline(), "⚪ ACTION: Signal in Deadzone (-0.1 to 0.1). No trade executed.")
+    print(fnline(), "="*30)
 
 if __name__ == "__main__":
     run_live_trader()

@@ -18,56 +18,18 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import settings
 from scripts.data_engine import build_and_save_dataset
 from core.processor import add_technical_indicators, prepare_features
-
+from core.tools import fnline, get_features_list, get_stack_size
 
 # -----------------------------------------
 # Helpers
 # -----------------------------------------
-def get_stack_size():
-    if settings.TIMEFRAME == "1h":
-        return 5
-    elif settings.TIMEFRAME == "1d":
-        return 10
-    else:
-        raise ValueError(f"Unsupported TIMEFRAME: {settings.TIMEFRAME}")
-
-
-def get_features_list():
-    base_features = [
-        'Log_Return',
-        'Volume_Z_Score',
-        'RSI',
-        'MACD_Hist',
-        'BB_Pct',
-        'ATR_Pct',
-        'Realized_Vol_Short',
-        'Realized_Vol_Long',
-        'Vol_Regime',
-        'Dist_MA_Fast',
-        'Dist_MA_Slow',
-        'QQQ_Ret',
-        'ARKK_Ret',
-        'Rel_Strength_QQQ',
-        'VIX_Z',
-        'TNX_Z',
-        'Sentiment_EMA',
-        'News_Intensity'
-    ]
-
-    if settings.TIMEFRAME == "1h":
-        return base_features + ['Sin_Time', 'Cos_Time', 'Mins_to_Close']
-    elif settings.TIMEFRAME == "1d":
-        return base_features
-    else:
-        raise ValueError(f"Unsupported TIMEFRAME: {settings.TIMEFRAME}")
-
 
 def send_telegram_alert(message: str):
     token = os.getenv("TELEGRAM_TOKEN")
     chat_id = os.getenv("TELEGRAM_CHAT_ID")
 
     if not token or not chat_id:
-        print("⚠️ Telegram credentials missing in .env. Skipping alert.")
+        print(fnline(), "⚠️ Telegram credentials missing in .env. Skipping alert.")
         return
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
@@ -76,7 +38,7 @@ def send_telegram_alert(message: str):
     try:
         requests.post(url, json=payload, timeout=10)
     except Exception as e:
-        print(f"❌ Failed to send Telegram alert: {e}")
+        print(fnline(), f"❌ Failed to send Telegram alert: {e}")
 
 
 def get_current_position_info(trading_client: TradingClient):
@@ -167,7 +129,7 @@ def action_to_text(action: int) -> str:
 # Main Live Trader
 # -----------------------------------------
 def run_live_trader():
-    print(f"🟢 STARTING LIVE TRADER FOR {settings.SYMBOL} ({settings.TIMEFRAME}) 🟢")
+    print(fnline(), f"🟢 STARTING LIVE TRADER FOR {settings.SYMBOL} ({settings.TIMEFRAME}) 🟢")
 
     load_dotenv()
 
@@ -179,7 +141,7 @@ def run_live_trader():
     trading_client = TradingClient(alpaca_key, alpaca_secret, paper=True)
 
     # 1. Build / refresh the latest hybrid dataset
-    print("📥 Refreshing latest hybrid dataset...")
+    print(fnline(), "📥 Refreshing latest hybrid dataset...")
     live_csv = f"data/{settings.SYMBOL.lower()}_{settings.TIMEFRAME}_live.csv"
     df = build_and_save_dataset(symbol=settings.SYMBOL, output_file=live_csv)
 
@@ -195,22 +157,22 @@ def run_live_trader():
     current_shares, current_cash, entry_price, portfolio_features = get_current_position_info(trading_client)
     current_price = float(df_proc.iloc[-1]["Close"])
 
-    print(f"📊 Latest price: ${current_price:.2f}")
-    print(f"💼 Current shares: {current_shares:.6f}")
-    print(f"💵 Current cash: ${current_cash:.2f}")
+    print(fnline(), f"📊 Latest price: ${current_price:.2f}")
+    print(fnline(), f"💼 Current shares: {current_shares:.6f}")
+    print(fnline(), f"💵 Current cash: ${current_cash:.2f}")
 
     # 4. Build stacked live observation
     obs = build_live_observation(scaled_features, portfolio_features)
 
     # 5. Load model and predict discrete action
-    print(f"🧠 Loading model from {settings.MODEL_PATH}.zip")
+    print(fnline(), f"🧠 Loading model from {settings.MODEL_PATH}.zip")
     model = PPO.load(settings.MODEL_PATH)
 
     action, _ = model.predict(obs, deterministic=True)
     action = int(action[0]) if isinstance(action, np.ndarray) else int(action)
 
     action_text = action_to_text(action)
-    print(f"🤖 PPO action: {action} -> {action_text}")
+    print(fnline(), f"🤖 PPO action: {action} -> {action_text}")
 
     # 6. Execute action
     executed = False
@@ -331,9 +293,8 @@ def run_live_trader():
             f"Model action: {action_text}"
         )
 
-    print(message.replace("*", ""))
+    print(fnline(), message.replace("*", ""))
     send_telegram_alert(message)
-
 
 if __name__ == "__main__":
     run_live_trader()

@@ -15,13 +15,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import settings
 from core.processor import add_technical_indicators, prepare_features
 from core.environment import TradingEnv
-
+from core.tools import fnline, get_features_list, get_stack_size
 
 def run_backtest():
     '''
     Missing function or method docstring.
     '''
-    print(os.path.basename(__file__) + '(' + str(sys._getframe(0).f_lineno) + '):', f"🧪 STARTING FINAL EXAM: {settings.EXPERIMENT_NAME}")
+    print(fnline(), f"🧪 STARTING FINAL EXAM: {settings.EXPERIMENT_NAME}")
 
     csv_path = f"data/{settings.SYMBOL.lower()}_{settings.TIMEFRAME}_hybrid.csv"
     if not os.path.exists(csv_path):
@@ -40,7 +40,7 @@ def run_backtest():
             f"and TEST_END_DATE ({settings.TEST_END_DATE})."
         )
 
-    print(os.path.basename(__file__) + '(' + str(sys._getframe(0).f_lineno) + '):', f"📅 Testing Data: {len(test_df)} rows loaded.")
+    print(fnline(), f"📅 Testing Data: {len(test_df)} rows loaded.")
 
     # Process features
     test_df = add_technical_indicators(test_df)
@@ -48,35 +48,8 @@ def run_backtest():
     if test_df.empty:
         raise ValueError("❌ Test dataframe is empty after preprocessing. Check rolling windows and test date range.")
 
-    base_features = [
-        'Log_Return',
-        'Volume_Z_Score',
-        'RSI',
-        'MACD_Hist',
-        'BB_Pct',
-        'ATR_Pct',
-        'Realized_Vol_Short',
-        'Realized_Vol_Long',
-        'Vol_Regime',
-        'Dist_MA_Fast',
-        'Dist_MA_Slow',
-        'QQQ_Ret',
-        'ARKK_Ret',
-        'Rel_Strength_QQQ',
-        'VIX_Z',
-        'TNX_Z',
-        'Sentiment_EMA',
-        'News_Intensity'
-    ]
-
-    if settings.TIMEFRAME == "1h":
-        features_list = base_features + ['Sin_Time', 'Cos_Time', 'Mins_to_Close']
-        stack_size = 5
-    elif settings.TIMEFRAME == "1d":
-        features_list = base_features
-        stack_size = 10
-    else:
-        raise ValueError(f"Unsupported TIMEFRAME: {settings.TIMEFRAME}")
+    features_list = get_features_list()
+    stack_size = get_stack_size()
 
     # Load the scaler fitted during training
     scaled_features = prepare_features(test_df, features_list, is_training=False)
@@ -88,11 +61,11 @@ def run_backtest():
 
     # Load the Brain
     model_path = settings.MODEL_PATH
-    print(os.path.basename(__file__) + '(' + str(sys._getframe(0).f_lineno) + '):', f"🧠 Loading trained model from {model_path}.zip")
+    print(fnline(), f"🧠 Loading trained model from {model_path}.zip")
     if os.path.isfile(f"{model_path}.zip"):
         model = PPO.load(model_path, env=env)
     else:
-        print(os.path.basename(__file__) + '(' + str(sys._getframe(0).f_lineno) + '):', f'Cannot PPO.load({model_path}): No such file or directory.')
+        print(fnline(), f'Cannot PPO.load({model_path}): No such file or directory.')
         return
 
     obs = env.reset()
@@ -115,7 +88,7 @@ def run_backtest():
     prev_position = 0.0
     step_info = None
 
-    print(os.path.basename(__file__) + '(' + str(sys._getframe(0).f_lineno) + '):', "📈 Simulating live trading...")
+    print(fnline(), "📈 Simulating live trading...")
 
     while not done:
         action, _states = model.predict(obs, deterministic=True)
@@ -140,19 +113,18 @@ def run_backtest():
     final_val = step_info['portfolio_value']
     total_return = ((final_val - initial_val) / initial_val) * 100
 
-    print(os.path.basename(__file__) + '(' + str(sys._getframe(0).f_lineno) + '):', "="*50)
-    print(os.path.basename(__file__) + '(' + str(sys._getframe(0).f_lineno) + '):', f"🏆 BACKTEST RESULTS: {settings.EXPERIMENT_NAME} 🏆")
-    print(os.path.basename(__file__) + '(' + str(sys._getframe(0).f_lineno) + '):', f"Final Portfolio Value: ${final_val:.2f}")
-    print(os.path.basename(__file__) + '(' + str(sys._getframe(0).f_lineno) + '):', f"Total Return: {total_return:.2f}%")
-    print(os.path.basename(__file__) + '(' + str(sys._getframe(0).f_lineno) + '):', f"Total Real Transactions: {len(trade_history)}")
-    print(os.path.basename(__file__) + '(' + str(sys._getframe(0).f_lineno) + '):', "="*50)
+    print(fnline(), "="*50)
+    print(fnline(), f"🏆 BACKTEST RESULTS: {settings.EXPERIMENT_NAME} 🏆")
+    print(fnline(), f"Final Portfolio Value: ${final_val:.2f}")
+    print(fnline(), f"Total Return: {total_return:.2f}%")
+    print(fnline(), f"Total Real Transactions: {len(trade_history)}")
+    print(fnline(), "="*50)
 
     if trade_history:
         df_trades = pd.DataFrame(trade_history)
         ledger_path = os.path.join(settings.ARTIFACT_DIR, "backtest_ledger.csv")
         df_trades.to_csv(ledger_path, index=False)
-        print(os.path.basename(__file__) + '(' + str(sys._getframe(0).f_lineno) + '):', f"\n💾 Full Ledger saved to Vault: {ledger_path}")
-
+        print(fnline(), f"\n💾 Full Ledger saved to Vault: {ledger_path}")
 
 if __name__ == "__main__":
     run_backtest()
