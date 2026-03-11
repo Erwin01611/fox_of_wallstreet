@@ -12,7 +12,7 @@ TIMEFRAME = "1h"       # Options: "1h" (Hourly) or "1d" (Daily)
 # Options:
 # "discrete_3" (0=Sell All, 1=Buy All, 2=Hold)
 # "discrete_5" (0=Sell All, 1=Sell Half, 2=Hold, 3=Buy Half, 4=Buy All)
-ACTION_SPACE_TYPE = "discrete_5"
+ACTION_SPACE_TYPE = "discrete_3"
 
 # 3. REWARD FUNCTION (The AI's Psychology)
 # Options:
@@ -21,14 +21,26 @@ ACTION_SPACE_TYPE = "discrete_5"
 REWARD_STRATEGY = "absolute_asymmetric"
 
 # 4. DATE SWAPPING (Train on New, Test on Old?)
-TRAIN_START_DATE = "2023-01-01"
-TRAIN_END_DATE   = "2025-10-31"
+#TRAIN_START_DATE = "2023-01-01"
+#TRAIN_END_DATE   = "2025-10-31"
 
-TEST_START_DATE  = "2025-11-01"
-TEST_END_DATE    = "2026-03-10"
+#TEST_START_DATE  = "2025-11-01"
+#TEST_END_DATE    = "2026-03-10"
+
+
+## Hard coded dates -> if 1d, than trained with much less data (1/6th)
+
+TRAIN_END_DATE = "2025-10-31"
+TEST_START_DATE = "2025-11-01"
+TEST_END_DATE = "2026-03-10"
+
+if TIMEFRAME == "1h":
+    TRAIN_START_DATE = "2023-01-01"
+elif TIMEFRAME == "1d":
+    TRAIN_START_DATE = "2018-01-01"
 
 # 5. TRAINING HYPERPARAMETERS
-TOTAL_TIMESTEPS = 1_000_000
+TOTAL_TIMESTEPS = 100_000 #1_000_000
 CASH_RISK_FRACTION = 0.99
 STOP_LOSS_PCT = 0.10     # Reference variables for standard boundaries
 TAKE_PROFIT_PCT = 0.20
@@ -75,10 +87,10 @@ MIN_POSITION_THRESHOLD = 1e-8
 MAX_BARS_IN_TRADE_NORM = 100.0
 
 # 8. PPO DEFAULT HYPERPARAMETERS
-PPO_LEARNING_RATE = 0.0001 #0.0003
-PPO_BATCH_SIZE = 256 #64
-PPO_GAMMA = 0.99 #0.99
-PPO_ENT_COEF = 0.002 #0.01
+PPO_LEARNING_RATE = 0.0003
+PPO_BATCH_SIZE = 64
+PPO_GAMMA = 0.99
+PPO_ENT_COEF = 0.01
 
 
 # ==========================================
@@ -92,9 +104,11 @@ PPO_TAG = (
     f"bs{PPO_BATCH_SIZE}_"
     f"g{str(PPO_GAMMA).replace('.', '')}"
 )
+VERSION = "2"
+OPTUNA_STUDY_VERSION = "v2" # set for a specific OPTUNA study version as used in optimize.py
 
 # Example: ppo_TSLA_1h_d5_asym_pen10_lr00003_v1
-EXPERIMENT_NAME = f"ppo_{SYMBOL}_{TIMEFRAME}_{ACTION_TAG}_{REWARD_TAG}_{ENV_TAG}_{PPO_TAG}_v1"
+EXPERIMENT_NAME = f"ppo_{SYMBOL}_{TIMEFRAME}_{ACTION_TAG}_{REWARD_TAG}_{ENV_TAG}_{PPO_TAG}_v{VERSION}"
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ARTIFACT_DIR = os.path.join(BASE_DIR, "artifacts", EXPERIMENT_NAME)
