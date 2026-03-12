@@ -36,11 +36,11 @@ else:
 
 
 # 5. TRAINING HYPERPARAMETERS
-TOTAL_TIMESTEPS = 500_000
-CASH_RISK_FRACTION = 0.75 # 0.99 (old default?!)
-STOP_LOSS_PCT = 0.10     # Reference variables for standard boundaries
-TAKE_PROFIT_PCT = 0.20
-MAX_BARS_NORMALIZATION = 100  # For hourly swing trading
+TOTAL_TIMESTEPS = 200_000
+CASH_RISK_FRACTION = 0.75 # how much of the portfolio is deployed (0.99 old default -> very risky trading)
+STOP_LOSS_PCT = 0.10     # Maximum tolerated loss before forced exit. -> Reference variables for standard boundaries
+TAKE_PROFIT_PCT = 0.20   # Automatic exit when profit reached +20%.
+MAX_BARS_NORMALIZATION = 100  # For hourly swing trading but works for daily data as well
 
 # 6. FEATURE ENGINEERING PARAMETERS
 if TIMEFRAME == "1h":
@@ -93,9 +93,10 @@ PPO_ENT_COEF = 0.0012
 PLOT_BACKTEST = True
 
 # 10. Experiment naming settings
-# RANDOM_SEED = 42
-EXPERIMENT_VERSION = 1
+RANDOM_SEED = 42
+EXPERIMENT_VERSION = 2
 
+OPTUNA_STUDY_VERSION = "v2"
 
 # ==========================================
 # 📦 ARTIFACT TRACKING (Auto-Naming Vault)
@@ -111,3 +112,4 @@ os.makedirs(ARTIFACT_DIR, exist_ok=True)
 MODEL_PATH = os.path.join(ARTIFACT_DIR, "model")
 SCALER_PATH = os.path.join(ARTIFACT_DIR, "scaler.pkl")
 METADATA_PATH = os.path.join(ARTIFACT_DIR, "metadata.json")
+BACKTEST_SUMMARY_PATH = os.path.join(ARTIFACT_DIR, "backtest_summary.json")
