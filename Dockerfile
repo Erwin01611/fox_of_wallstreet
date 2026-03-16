@@ -11,6 +11,7 @@ WORKDIR /app
 # 4. Install dependencies
 # Make sure 'fastapi' and 'uvicorn' are in your requirements.txt
 COPY requirements.txt .
+RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 5. Copy your application code
