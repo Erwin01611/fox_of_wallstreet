@@ -7,6 +7,7 @@ All configuration is driven by config/settings.py.
 
 import os
 import sys
+import math
 
 import optuna
 import numpy as np
@@ -53,6 +54,14 @@ def _scale_for_optimization(train_df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(scaled, columns=features_list, index=train_df.index)
 
 
+def cosine_lr(initial_lr: float):
+    """Cosine decay schedule — mirrors train.py so Optuna trials are evaluated identically."""
+    def schedule(progress_remaining: float) -> float:
+        cosine_factor = 0.5 * (1.0 + math.cos(math.pi * (1.0 - progress_remaining)))
+        return initial_lr * (settings.LR_COSINE_MIN_FRACTION + (1.0 - settings.LR_COSINE_MIN_FRACTION) * cosine_factor)
+    return schedule
+
+
 def sample_ppo_params(trial: optuna.Trial) -> dict:
     """
     Define the hyperparameter search space.
@@ -61,8 +70,8 @@ def sample_ppo_params(trial: optuna.Trial) -> dict:
     return {
         "learning_rate": trial.suggest_float("learning_rate", 1e-5, 3e-4, log=True),  # clamped — >3e-4 destabilizes PPO
         "batch_size":    trial.suggest_categorical("batch_size", [32, 64, 128, 256]),
-        "gamma":         trial.suggest_float("gamma", 0.85, 0.97, log=False),   # floor lowered 0.90→0.85 (Optuna hit floor twice)
-        "ent_coef":      trial.suggest_float("ent_coef", 5e-4, 0.01, log=True), # floor raised 1e-4→5e-4 (prevents early entropy collapse)
+        "gamma":         trial.suggest_float("gamma", 0.90, 0.97, log=False),   # restored 0.90 floor — 0.865 caused overtrading
+        "ent_coef":      trial.suggest_float("ent_coef", 1e-4, 0.01, log=True), # original range — 0918 best found 0.000422 here
     }
 
 

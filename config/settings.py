@@ -32,7 +32,7 @@ CASH_RISK_FRACTION = 0.65           # Position sizing per buy. Typical: 0.30 to 
 # ==========================================
 # 3. REWARD & RISK
 # ==========================================
-REWARD_STRATEGY = "pure_pnl"       # "pure_pnl" (neutral) or "absolute_asymmetric" (losses penalized more).
+REWARD_STRATEGY = "pure_pnl"               # "pure_pnl" (neutral) or "absolute_asymmetric" (losses penalized more).
 BANKRUPTCY_THRESHOLD_PCT = 0.50     # Episode stops at this drawdown floor. 0.50 = allow 50% capital loss.
 BANKRUPTCY_PENALTY = 10.0           # Extra negative reward on bankruptcy. Typical: 5 to 30.
 STOP_LOSS_PCT = 0.20                # Forced close when unrealized PnL <= -value. Typical: 0.05 to 0.30.
@@ -104,8 +104,11 @@ AVWAP_ATR_K_D       = 1.0  # Daily ATR significance multiplier
 # 7. TRAINING
 # ==========================================
 TOTAL_TIMESTEPS = 200_000  # Best observed for TSLA 1h discrete_5 (Mogens)
-LEARNING_RATE   = 3e-4
-ENT_COEF        = 0.01
+LEARNING_RATE          = 0.000237   # Best known (run 0918, +8.16% OOS)
+LR_COSINE_MIN_FRACTION = 0.1        # Used only when cosine schedule is enabled in train.py
+ENT_COEF               = 0.000422  # Best known (run 0918, +8.16% OOS)
+BATCH_SIZE             = 128        # Best known (run 0918, +8.16% OOS)
+GAMMA                  = 0.9005     # Best known (run 0918, +8.16% OOS)
 N_STACK         = 5
 RANDOM_SEED     = 42
 

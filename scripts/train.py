@@ -7,6 +7,7 @@ All configuration is driven exclusively by config/settings.py.
 import os
 import sys
 import json
+import math
 
 import pandas as pd
 from stable_baselines3 import PPO
@@ -18,6 +19,16 @@ from config import settings
 from core.experiment_journal import log_training_run
 from core.processor import build_training_dataset, prepare_features
 from core.environment import TradingEnv
+
+
+def cosine_lr(initial_lr: float):
+    """Returns an SB3-compatible LR schedule: cosine decay from initial_lr down to
+    initial_lr * LR_COSINE_MIN_FRACTION. High exploration early, stable exploitation late."""
+    def schedule(progress_remaining: float) -> float:
+        # progress_remaining: 1.0 (start) → 0.0 (end)
+        cosine_factor = 0.5 * (1.0 + math.cos(math.pi * (1.0 - progress_remaining)))
+        return initial_lr * (settings.LR_COSINE_MIN_FRACTION + (1.0 - settings.LR_COSINE_MIN_FRACTION) * cosine_factor)
+    return schedule
 
 
 def _safe_mtime(path):
@@ -75,7 +86,9 @@ def _resolve_ppo_params():
     """Use Optuna best params when enabled, otherwise fallback to settings defaults."""
     params = {
         "learning_rate": settings.LEARNING_RATE,
-        "ent_coef": settings.ENT_COEF,
+        "ent_coef":      settings.ENT_COEF,
+        "batch_size":    settings.BATCH_SIZE,
+        "gamma":         settings.GAMMA,
     }
 
     if not settings.USE_OPTUNA_BEST_PARAMS:
@@ -97,6 +110,10 @@ def _resolve_ppo_params():
             params["learning_rate"] = float(best["learning_rate"])
         if "ent_coef" in best:
             params["ent_coef"] = float(best["ent_coef"])
+        if "batch_size" in best:
+            params["batch_size"] = int(best["batch_size"])
+        if "gamma" in best:
+            params["gamma"] = float(best["gamma"])
 
         print(f"✅ Loaded Optuna best params from {settings.OPTUNA_DB_PATH}")
     except Exception as exc:
@@ -151,6 +168,8 @@ def run_training():
         verbose=1,
         learning_rate=ppo_params["learning_rate"],
         ent_coef=ppo_params["ent_coef"],
+        batch_size=ppo_params["batch_size"],
+        gamma=ppo_params["gamma"],
         seed=settings.RANDOM_SEED,
     )
     model.learn(total_timesteps=settings.TOTAL_TIMESTEPS)
@@ -176,6 +195,8 @@ def run_training():
         "total_timesteps":    settings.TOTAL_TIMESTEPS,
         "learning_rate":      ppo_params["learning_rate"],
         "ent_coef":           ppo_params["ent_coef"],
+        "batch_size":         ppo_params["batch_size"],
+        "gamma":              ppo_params["gamma"],
         "n_stack":            settings.N_STACK,
         "random_seed":        settings.RANDOM_SEED,
         "cash_risk_fraction": settings.CASH_RISK_FRACTION,
