@@ -5,29 +5,23 @@ FROM python:3.12.9-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# 3. Set the working directory
+# 3. Setup user early
+RUN useradd -m fastapiuser
 WORKDIR /app
+RUN mkdir -p /app/artifacts && chown fastapiuser:fastapiuser /app/artifacts
 
-# 4. Install dependencies
-# Make sure 'fastapi' and 'uvicorn' are in your requirements.txt
+# 4. Install dependencies (using the cache mount from above)
 COPY requirements.txt .
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
 
-# 5. Copy your application code
-COPY . .
+# 5. Copy files AND change ownership in ONE step
+# This prevents a massive, slow "chown" layer later
+COPY --chown=fastapiuser:fastapiuser . .
+
+USER fastapiuser
 
 # 6. Expose the port FastAPI usually runs on
 EXPOSE 8000
 
-# 7. Run as a non-root user for security
-RUN useradd -m fastapiuser
-RUN mkdir -m 777 /app/artifacts
-RUN chown -R fastapiuser:fastapiuser /app
-USER fastapiuser
-
-# 8. Start the app using Uvicorn
-# 'main:app' assumes your file is main.py and your FastAPI instance is named 'app'
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-
-
