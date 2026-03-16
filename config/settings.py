@@ -103,7 +103,7 @@ AVWAP_ATR_K_D       = 1.0  # Daily ATR significance multiplier
 # ==========================================
 # 7. TRAINING
 # ==========================================
-TOTAL_TIMESTEPS = 200_000  # Best observed for TSLA 1h discrete_5 (Mogens)
+TOTAL_TIMESTEPS = 500_000  # Best observed for TSLA 1h discrete_5 (Mogens)
 LEARNING_RATE   = 3e-4
 ENT_COEF        = 0.01
 N_STACK         = 5

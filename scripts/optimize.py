@@ -61,7 +61,7 @@ def sample_ppo_params(trial: optuna.Trial) -> dict:
     return {
         "learning_rate": trial.suggest_float("learning_rate", 1e-5, 3e-4, log=True),  # clamped — >3e-4 destabilizes PPO
         "batch_size":    trial.suggest_categorical("batch_size", [32, 64, 128, 256]),
-        "gamma":         trial.suggest_float("gamma", 0.85, 0.97, log=False),   # floor lowered 0.90→0.85 (Optuna hit floor twice)
+        "gamma":         trial.suggest_float("gamma", 0.90, 0.97, log=False),   # restored to 0.90 — 0.865 caused overtrading
         "ent_coef":      trial.suggest_float("ent_coef", 5e-4, 0.01, log=True), # floor raised 1e-4→5e-4 (prevents early entropy collapse)
     }
 
