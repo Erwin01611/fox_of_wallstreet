@@ -12,6 +12,8 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from core.tools import fnline
+
 from config import settings
 from core.experiment_journal import log_backtest_result
 from core.environment import TradingEnv
