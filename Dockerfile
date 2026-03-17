@@ -1,7 +1,7 @@
 # 1. Using the slim Python 3.12.9 image
 FROM python:3.12.9-slim
 
-# 2. Set environment variables
+# 2. Prevent Python from writing .pyc files and ensure logs are sent straight to terminal
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
@@ -22,6 +22,6 @@ COPY --chown=fastapiuser:fastapiuser . .
 USER fastapiuser
 
 # 6. Expose the port FastAPI usually runs on
-EXPOSE 8000
+EXPOSE 8080
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
