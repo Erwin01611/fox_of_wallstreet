@@ -21,6 +21,10 @@ from components.model_selector import (
     render_loaded_model_status,
     load_model_to_session,
 )
+from components.model_upload import (
+    render_model_uploader,
+    get_uploaded_models,
+)
 
 st.set_page_config(
     page_title="Models",
@@ -30,10 +34,36 @@ st.set_page_config(
 
 st.title("🧠 Model Management")
 
-# Two columns: selection and status
-col1, col2 = st.columns([2, 1])
+# Check if we have any models
+import glob
+artifacts_exist = len(glob.glob("artifacts/*")) > 0
+uploaded_models = get_uploaded_models()
 
-with col1:
+if not artifacts_exist and not uploaded_models:
+    st.warning("""
+    ⚠️ **No Models Found**
+    
+    It looks like the `artifacts/` folder isn't available in this deployment.
+    
+    **You have 3 options:**
+    
+    1️⃣ **Upload a Model** (Recommended for demo)
+       - Use the upload section below
+       - Zip your local model folder and upload it
+       
+    2️⃣ **Commit artifacts to Git** (Not recommended - large files)
+       - Add model files to your repo
+       - Re-deploy
+       
+    3️⃣ **Train a new model** (Takes time)
+       - Run training locally
+       - Then upload the model
+    """)
+
+# Create tabs for different model sources
+tab_local, tab_upload = st.tabs(["📁 Local Models", "📤 Upload Model"])
+
+with tab_local:
     st.header("Select a Model")
     st.write("Choose a trained model from your artifacts folder.")
     
@@ -45,56 +75,72 @@ with col1:
         success = load_model_to_session(selected_model)
         if success:
             st.rerun()
-
-with col2:
-    st.header("Current Model")
-    render_loaded_model_status()
-
-# Model comparison section
-st.divider()
-st.header("📊 Available Models")
-
-from shared.utils.model_discovery import list_available_models
-
-models = list_available_models()
-
-if models:
-    # Create a table view
-    import pandas as pd
     
-    table_data = []
-    for m in models:
-        table_data.append({
-            "Name": m["name"][:40] + "..." if len(m["name"]) > 40 else m["name"],
-            "Symbol": m["parsed"].get("symbol", "?"),
-            "Timeframe": m["parsed"].get("timeframe", "?"),
-            "Action": m["parsed"].get("action", "?"),
-            "Date": m["timestamp"].strftime("%Y-%m-%d %H:%M") if m["timestamp"] else "Unknown",
-            "Model": "✅" if m["has_model"] else "❌",
-            "Backtest": "✅" if m["has_ledger"] else "❌",
-        })
+    if not artifacts_exist:
+        st.info("💡 No local models found. Switch to 'Upload Model' tab to upload a model.")
+
+with tab_upload:
+    st.header("Upload a Model")
+    st.write("Upload a trained model from your local machine.")
     
-    df = pd.DataFrame(table_data)
-    st.dataframe(df, use_container_width=True, hide_index=True)
-else:
-    st.info("No models found. Train a model first using `python scripts/train.py`")
+    # Show upload interface
+    uploaded_model = render_model_uploader()
+    
+    # Show previously uploaded models
+    if uploaded_models:
+        st.divider()
+        st.subheader("📦 Previously Uploaded Models")
+        
+        for model in uploaded_models:
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                meta = model['metadata']
+                st.write(f"**{model['name']}**")
+                st.caption(f"Symbol: {meta.get('symbol', 'N/A')} | Timeframe: {meta.get('timeframe', 'N/A')}")
+            with col2:
+                if st.button("Load", key=f"load_uploaded_{model['name']}"):
+                    success = load_model_to_session(model)
+                    if success:
+                        st.rerun()
 
-# Help section
+# Current model status
 st.divider()
-st.header("ℹ️ About Models")
+st.header("Current Model")
+render_loaded_model_status()
 
-st.write("""
-**Model Files:**
-- `model.zip` - The trained PPO model weights
-- `scaler.pkl` - Feature scaler fitted on training data
-- `metadata.json` - Training configuration and hyperparameters
-- `backtest_ledger.csv` - Historical trades from backtest
+# Instructions
+with st.expander("💡 How to package your model for upload"):
+    st.write("""
+    **Step 1: Find your model locally**
+    ```bash
+    cd fox_of_wallstreet/artifacts/
+    ls -la
+    # You'll see folders like:
+    # 20260318_143000_AAPL_1h_discrete_5/
+    ```
+    
+    **Step 2: Verify it has the required files**
+    ```bash
+    cd 20260318_143000_AAPL_1h_discrete_5/
+    ls -la
+    # Should contain:
+    # - metadata.json
+    # - best_model.zip (or best_model/ folder)
+    ```
+    
+    **Step 3: Zip the entire folder**
+    ```bash
+    cd ..
+    zip -r my_model.zip 20260318_143000_AAPL_1h_discrete_5/
+    ```
+    
+    **Step 4: Upload the ZIP file**
+    - Switch to the "Upload Model" tab
+    - Select your ZIP file
+    - Click "Load" to use the model
+    
+    **Note:** Uploaded models are stored temporarily and may be lost when the app restarts.
+    For permanent deployment, consider committing the artifacts folder or using persistent storage.
+    """)
 
-**Compatibility:**
-Models are validated against your current `config/settings.py`. 
-If settings don't match, you'll see a warning but can still load the model.
-
-**Action Spaces:**
-- **discrete_3**: Simpler - Buy All, Sell All, or Hold
-- **discrete_5**: More granular - Buy/Sell at 50% or 100% increments
-""")
+show_logout_button()
