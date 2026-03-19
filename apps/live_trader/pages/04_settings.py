@@ -169,8 +169,36 @@ with cols[1]:
     
     if has_telegram:
         st.success("✅ Telegram configured")
+        # Show partial token for verification
+        token_preview = os.getenv("TELEGRAM_TOKEN", "")[:10] + "..." if os.getenv("TELEGRAM_TOKEN") else ""
+        st.caption(f"Token: {token_preview}")
+        
+        # Test button
+        if st.button("🧪 Test Telegram", type="secondary"):
+            with st.spinner("Sending test message..."):
+                sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+                from utils.telegram import get_notifier
+                telegram = get_notifier()
+                success = telegram.send_message("🧪 *Test Message*\n\nYour Telegram notifications are working!")
+                if success:
+                    st.success("✅ Test message sent! Check your Telegram.")
+                else:
+                    st.error("❌ Failed to send test message")
     else:
         st.info("ℹ️ Telegram not configured (optional)")
+        st.warning("""
+        **To enable Telegram notifications:**
+        
+        1. Message [@BotFather](https://t.me/botfather) on Telegram
+        2. Create a new bot and copy the token
+        3. Message [@userinfobot](https://t.me/userinfobot) to get your Chat ID
+        4. Add to Streamlit Cloud Secrets:
+           ```
+           TELEGRAM_TOKEN = "your_token_here"
+           TELEGRAM_CHAT_ID = "your_chat_id_here"
+           ```
+        5. Reboot the app
+        """)
     
     # Show trading limits
     st.subheader("Risk Limits")
@@ -196,3 +224,26 @@ TELEGRAM_CHAT_ID=your_chat_id_here
 """, language="bash")
 
 st.info("After editing .env, restart the Streamlit app to apply changes.")
+
+st.divider()
+
+# Debug section
+with st.expander("🔧 Debug: Environment Variables"):
+    st.write("**Checking environment variables:**")
+    
+    env_vars = {
+        "ALPACA_API_KEY": bool(os.getenv("ALPACA_API_KEY")),
+        "ALPACA_SECRET_KEY": bool(os.getenv("ALPACA_SECRET_KEY")),
+        "ALPACA_PAPER": os.getenv("ALPACA_PAPER", "not set"),
+        "TELEGRAM_TOKEN": bool(os.getenv("TELEGRAM_TOKEN")),
+        "TELEGRAM_CHAT_ID": bool(os.getenv("TELEGRAM_CHAT_ID")),
+    }
+    
+    for var, value in env_vars.items():
+        if isinstance(value, bool):
+            status = "✅ Set" if value else "❌ Not set"
+        else:
+            status = f"📋 {value}"
+        st.write(f"**{var}:** {status}")
+    
+    st.caption("Note: Actual values are hidden for security")
