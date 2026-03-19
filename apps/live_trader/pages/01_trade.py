@@ -424,6 +424,18 @@ with right_col:
             }
             st.session_state["activity_log"].append(log_entry)
             st.success(f"📝 {msg}")
+            
+            # Send Telegram notification for demo purposes (even in simulate mode)
+            if telegram.enabled:
+                telegram.notify_order(
+                    symbol=trading_symbol,
+                    action=action_name,
+                    quantity=int(shares) if "BUY" in action_name else int(shares_to_sell) if "SELL" in action_name else 0,
+                    price=latest_price,
+                    mode=f"SIMULATE (DEMO)",
+                )
+                st.info("📱 Telegram notification sent (demo mode)")
+            
             st.rerun()
             return
         

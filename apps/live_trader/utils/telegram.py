@@ -52,6 +52,7 @@ class TelegramNotifier:
             "simulate": "🔍 SIMULATE",
             "secure": "🛡️ SECURE",
             "autopilot": "🤖 AUTOPILOT",
+            "simulate (demo)": "🎮 SIMULATE (DEMO)",
         }
         
         emoji = action_emojis.get(action.lower(), "⚪")
