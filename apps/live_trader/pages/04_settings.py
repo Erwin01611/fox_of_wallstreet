@@ -176,7 +176,8 @@ with cols[1]:
     st.subheader("Risk Limits")
     st.write(f"**Trading Budget:** ${settings.LIVE_TRADING_BUDGET:,.2f}")
     st.write(f"**Cash Risk Fraction:** {settings.CASH_RISK_FRACTION:.0%}")
-    st.write(f"**Max Position:** {settings.MAX_POSITION_PCT:.0%}")
+    st.write(f"**Stop Loss:** {settings.STOP_LOSS_PCT:.1%}")
+    st.write(f"**Take Profit:** {settings.TAKE_PROFIT_PCT:.1%}")
 
 st.divider()
 
